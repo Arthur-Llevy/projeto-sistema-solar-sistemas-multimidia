@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sistema Solar - Three.js</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: Arial, sans-serif;
+      }
+      #hud {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-size: 16px;
+        text-shadow: 0 0 10px #fff;
+        pointer-events: none;
+      }
+      #controles {
+        position: absolute;
+        bottom: 20px;
+        width: 100%;
+        text-align: center;
+        color: #888;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <strong>Sistema Solar</strong><br />
+      Arraste para girar • Scroll para zoom • Botão direito para mover
+    </div>
+    <div id="controles">Sol e 8 planetas orbitando</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+      // ===== 1. CONFIGURAÇÃO BÁSICA =====
+      const cena = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        5000,
+      );
+      camera.position.set(0, 60, 120);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.body.appendChild(renderer.domElement);
+
+      // ===== 2. CONTROLES DE CÂMERA =====
+      const controles = new THREE.OrbitControls(camera, renderer.domElement);
+      controles.enableDamping = true;
+      controles.dampingFactor = 0.05;
+      controles.minDistance = 30;
+      controles.maxDistance = 400;
+
+      // ===== 3. ILUMINAÇÃO =====
+      // Luz ambiente bem fraca para não "apagar" o espaço
+      const luzAmbiente = new THREE.AmbientLight(0x222222);
+      cena.add(luzAmbiente);
+
+      // Luz do Sol (ponto de luz no centro)
+      const luzSol = new THREE.PointLight(0xffffff, 2, 0, 0);
+      luzSol.position.set(0, 0, 0);
+      cena.add(luzSol);
+
+      // ===== 4. ESTRELAS DE FUNDO =====
+      const geoEstrelas = new THREE.BufferGeometry();
+      const posEstrelas = [];
+      for (let i = 0; i < 5000; i++) {
+        // Distribuição esférica ao redor da cena
+        const r = 800 + Math.random() * 400;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        posEstrelas.push(
+          r * Math.sin(phi) * Math.cos(theta),
+          r * Math.sin(phi) * Math.sin(theta),
+          r * Math.cos(phi),
+        );
+      }
+      geoEstrelas.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(posEstrelas, 3),
+      );
+      const estrelas = new THREE.Points(
+        geoEstrelas,
+        new THREE.PointsMaterial({ color: 0xffffff, size: 1.2 }),
+      );
+      cena.add(estrelas);
+
+      // ===== 5. SOL =====
+      const geoSol = new THREE.SphereGeometry(6, 64, 64);
+      const matSol = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+      const sol = new THREE.Mesh(geoSol, matSol);
+      cena.add(sol);
+
+      // Brilho ao redor do Sol (segunda esfera transparente)
+      const geoBrilho = new THREE.SphereGeometry(7.5, 64, 64);
+      const matBrilho = new THREE.MeshBasicMaterial({
+        color: 0xffcc44,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.BackSide,
+      });
+      const brilho = new THREE.Mesh(geoBrilho, matBrilho);
+      cena.add(brilho);
+
+      // ===== 6. DADOS DOS PLANETAS =====
+      // nome, raio, distância do Sol, cor, velocidade orbital, tem anel?
+      const dadosPlanetas = [
+        {
+          nome: "Mercúrio",
+          raio: 0.8,
+          distancia: 12,
+          cor: 0x8c7853,
+          velocidade: 0.02,
+          anel: false,
+        },
+        {
+          nome: "Vênus",
+          raio: 1.1,
+          distancia: 17,
+          cor: 0xffcc66,
+          velocidade: 0.015,
+          anel: false,
+        },
+        {
+          nome: "Terra",
+          raio: 1.2,
+          distancia: 23,
+          cor: 0x2266cc,
+          velocidade: 0.012,
+          anel: false,
+        },
+        {
+          nome: "Marte",
+          raio: 0.9,
+          distancia: 29,
+          cor: 0xcc4422,
+          velocidade: 0.01,
+          anel: false,
+        },
+        {
+          nome: "Júpiter",
+          raio: 3.5,
+          distancia: 42,
+          cor: 0xddaa77,
+          velocidade: 0.006,
+          anel: false,
+        },
+        {
+          nome: "Saturno",
+          raio: 3.0,
+          distancia: 55,
+          cor: 0xeedd99,
+          velocidade: 0.004,
+          anel: true,
+        },
+        {
+          nome: "Urano",
+          raio: 2.0,
+          distancia: 68,
+          cor: 0x88ccdd,
+          velocidade: 0.003,
+          anel: false,
+        },
+        {
+          nome: "Netuno",
+          raio: 1.9,
+          distancia: 80,
+          cor: 0x3355aa,
+          velocidade: 0.002,
+          anel: false,
+        },
+      ];
+
+      const planetas = [];
+
+      // ===== 7. CRIA CADA PLANETA =====
+      dadosPlanetas.forEach((d) => {
+        // Corpo do planeta
+        const geo = new THREE.SphereGeometry(d.raio, 32, 32);
+        const mat = new THREE.MeshStandardMaterial({
+          color: d.cor,
+          roughness: 0.9,
+          metalness: 0.1,
+        });
+        const planeta = new THREE.Mesh(geo, mat);
+        planeta.userData = {
+          distancia: d.distancia,
+          velocidade: d.velocidade,
+          angulo: Math.random() * Math.PI * 2, // começa em posição aleatória
+        };
+
+        // Grupo de planetas
+        const grupoOrbita = new THREE.Group();
+        grupoOrbita.add(planeta);
+        planeta.position.x = d.distancia;
+        cena.add(grupoOrbita);
+
+        const pontosOrbita = [];
+        const segmentos = 128;
+        for (let i = 0; i <= segmentos; i++) {
+          const a = (i / segmentos) * Math.PI * 2;
+          pontosOrbita.push(
+            new THREE.Vector3(
+              Math.cos(a) * d.distancia,
+              0,
+              Math.sin(a) * d.distancia,
+            ),
+          );
+        }
+        const geoOrbita = new THREE.BufferGeometry().setFromPoints(
+          pontosOrbita,
+        );
+        const matOrbita = new THREE.LineBasicMaterial({
+          color: 0x444444,
+          transparent: true,
+          opacity: 0.5,
+        });
+        const linhaOrbita = new THREE.Line(geoOrbita, matOrbita);
+        cena.add(linhaOrbita);
+
+        if (d.anel) {
+          const geoAnel = new THREE.RingGeometry(
+            d.raio * 1.5,
+            d.raio * 2.3,
+            64,
+          );
+          const matAnel = new THREE.MeshBasicMaterial({
+            color: 0xc2b280,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.7,
+          });
+          const anel = new THREE.Mesh(geoAnel, matAnel);
+          anel.rotation.x = Math.PI / 2;
+          planeta.add(anel);
+        }
+
+        planetas.push({ grupo: grupoOrbita, planeta, dados: d });
+      });
+
+      const relogio = new THREE.Clock();
+
+      function animar() {
+        requestAnimationFrame(animar);
+        const delta = relogio.getDelta();
+
+        // Gira cada órbita
+        planetas.forEach((p) => {
+          p.grupo.rotation.y += p.dados.velocidade * delta * 10;
+          // Rotação própria do planeta
+          p.planeta.rotation.y += 0.01;
+        });
+
+        sol.rotation.y += 0.002;
+        brilho.rotation.y -= 0.001;
+
+        estrelas.rotation.y += 0.0001;
+
+        controles.update();
+        renderer.render(cena, camera);
+      }
+
+      animar();
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
